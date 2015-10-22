@@ -2,6 +2,8 @@
 #include "gk2_utils.h"
 #include "gk2_vertices.h"
 #include "gk2_window.h"
+#include <fstream>
+#include <iostream>
 
 using namespace std;
 using namespace gk2;
@@ -69,7 +71,8 @@ void Scene::InitializeCamera()
 	float ar = static_cast<float>(s.cx) / s.cy;
 	m_projMtx = XMMatrixPerspectiveFovLH(XM_PIDIV4, ar, 0.01f, 100.0f);
 	m_context->UpdateSubresource(m_cbProj.get(), 0, 0, &m_projMtx, 0, 0);
-	m_camera.Zoom(2.5);
+	m_camera.Zoom(5);
+	m_camera.Rotate(XM_PIDIV4, 0.0f);
 	UpdateCamera(m_camera.GetViewMatrix());
 }
 
@@ -97,7 +100,10 @@ bool Scene::LoadContent()
 	InitializeCamera();
 	SetShaders();
 	SetConstantBuffers();
-	CreateModel();
+	InitializeService();
+	CreateCoordinateSystem();
+	CreateMiller();
+	CreateMap();
 	CreateTweakBar();
 	return true;
 }
@@ -107,9 +113,6 @@ void Scene::UnloadContent()
 	m_vertexShader.reset();
 	m_pixelShader.reset();
 	m_inputLayout.reset();
-
-	m_vbModel.reset();
-	m_ibModel.reset();
 
 	m_cbWorld.reset();
 	m_cbView.reset();
@@ -197,76 +200,114 @@ void Scene::Update(float dt)
 	if (change)
 		UpdateCamera(m_camera.GetViewMatrix());
 	if (modelAnimate)
-		UpdateModel(dt);
-}
-
-void Scene::CreateModel()
-{
-	unsigned short indices[] =
 	{
-		0, 2, 1, 0, 3, 2,
-		4, 6, 5, 4, 7, 6,
-		8, 10, 9, 8, 11, 10,
-		12, 14, 13, 12, 15, 14,
-		16, 18, 17, 16, 19, 18,
-		20, 22, 21, 20, 23, 22
-	};
+		UpdateMap(dt);
+		UpdateMiller();
+	}
+}
 
-	float size = 1.0f;
+void Scene::InitializeService()
+{
+	service.Context = m_context;
+	service.Device = m_device;
+	service.cbSurfaceColor = m_cbSurfaceColor;
+	service.Scene = this;
+}
 
-	VertexPosNormal vertices[] =
+void Scene::CreateCoordinateSystem()
+{
+	m_coordinateSystem = new CoordinateSystem(service);
+}
+
+void Scene::CreateMiller()
+{
+	m_miller = new Miller(service);
+}
+
+void Scene::CreateMap()
+{
+	m_HeightMap = new HeightMap(service);
+}
+
+void Scene::RecreateScene()
+{
+	delete m_HeightMap;
+	delete m_miller;
+	m_miller = new Miller(service, millerSize);
+	m_HeightMap = new HeightMap(service, gridWidth, gridHeight, width, height, minY);
+
+	
+	SetMillerStartPosition();
+}
+
+void Scene::DrawCoordinateSystem()
+{
+	m_coordinateSystem->Draw();
+}
+
+int Scene::Signum(float x)
+{
+	return (x > 0) ? 1 : (x < 0) ? -1 : 0;
+}
+
+void Scene::DrawMiller()
+{
+	XMMATRIX worldMtx;
+	m_miller->GetModelMatrix(worldMtx);
+	m_context->UpdateSubresource(m_cbWorld.get(), 0, 0, &worldMtx, 0, 0);
+	m_miller->Draw();
+	m_context->UpdateSubresource(m_cbWorld.get(), 0, 0, &XMMatrixIdentity(), 0, 0);
+}
+
+void Scene::DrawMap()
+{
+	m_HeightMap->Draw();
+}
+
+void Scene::SetMillerStartPosition()
+{
+	if (paths.size() > 0)
 	{
-		{ XMFLOAT3(-size / 2, -size / 2, -size / 2), XMFLOAT3(0.0f, 0.0f, -1.0f) },
-		{ XMFLOAT3(size / 2, -size / 2, -size / 2), XMFLOAT3(0.0f, 0.0f, -1.0f) },
-		{ XMFLOAT3(size / 2, size / 2, -size / 2), XMFLOAT3(0.0f, 0.0f, -1.0f) },
-		{ XMFLOAT3(-size / 2, size / 2, -size / 2), XMFLOAT3(0.0f, 0.0f, -1.0f) },
-
-		{ XMFLOAT3(-size / 2, -size / 2, -size / 2), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT3(-size / 2, size / 2, -size / 2), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT3(-size / 2, size / 2, size / 2), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT3(-size / 2, -size / 2, size / 2), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
-
-		{ XMFLOAT3(-size / 2, -size / 2, -size / 2), XMFLOAT3(0.0f, -1.0f, 0.0f) },
-		{ XMFLOAT3(-size / 2, -size / 2, size / 2), XMFLOAT3(0.0f, -1.0f, 0.0f) },
-		{ XMFLOAT3(size / 2, -size / 2, size / 2), XMFLOAT3(0.0f, -1.0f, 0.0f) },
-		{ XMFLOAT3(size / 2, -size / 2, -size / 2), XMFLOAT3(0.0f, -1.0f, 0.0f) },
-
-		{ XMFLOAT3(-size / 2, -size / 2, size / 2), XMFLOAT3(0.0f, 0.0f, 1.0f) },
-		{ XMFLOAT3(-size / 2, size / 2, size / 2), XMFLOAT3(0.0f, 0.0f, 1.0f) },
-		{ XMFLOAT3(size / 2, size / 2, size / 2), XMFLOAT3(0.0f, 0.0f, 1.0f) },
-		{ XMFLOAT3(size / 2, -size / 2, size / 2), XMFLOAT3(0.0f, 0.0f, 1.0f) },
-
-		{ XMFLOAT3(size / 2, -size / 2, -size / 2), XMFLOAT3(1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT3(size / 2, -size / 2, size / 2), XMFLOAT3(1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT3(size / 2, size / 2, size / 2), XMFLOAT3(1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT3(size / 2, size / 2, -size / 2), XMFLOAT3(1.0f, 0.0f, 0.0f) },
-
-		{ XMFLOAT3(-size / 2, size / 2, -size / 2), XMFLOAT3(0.0f, 1.0f, 0.0f) },
-		{ XMFLOAT3(size / 2, size / 2, -size / 2), XMFLOAT3(0.0f, 1.0f, 0.0f) },
-		{ XMFLOAT3(size / 2, size / 2, size / 2), XMFLOAT3(0.0f, 1.0f, 0.0f) },
-		{ XMFLOAT3(-size / 2, size / 2, size / 2), XMFLOAT3(0.0f, 1.0f, 0.0f) },
-	};
-
-	m_vbModel = m_device.CreateVertexBuffer(vertices, 24);
-	m_ibModel = m_device.CreateIndexBuffer(indices, 36);
-	m_ibModelCount = 36;
-	m_ModelMtx = XMMatrixIdentity();
+		m_miller->Translate(XMFLOAT4(paths[0].Pos.x, paths[0].Pos.y - 0.5f, paths[0].Pos.z, 1));
+		actualPath = 1;
+	}
 }
 
-void Scene::DrawModel()
+void Scene::UpdateMiller()
 {
-	SetSurfaceColor(XMFLOAT4(0.35f, 0.35f, 0.45f, 1.0f));
-	ID3D11Buffer* b = m_vbModel.get();
-	m_context->IASetVertexBuffers(0, 1, &b, &VB_STRIDE, &VB_OFFSET);
-	m_context->IASetIndexBuffer(m_ibModel.get(), DXGI_FORMAT_R16_UINT, 0);
-	m_context->UpdateSubresource(m_cbWorld.get(), 0, 0, &m_ModelMtx, 0, 0);
-	m_context->DrawIndexed(m_ibModelCount, 0, 0);
+	auto pos = m_miller->GetPosition();
+	auto nextPos = paths[actualPath].Pos;
+	if (abs(pos.x - nextPos.x) + abs(pos.y - nextPos.y) + abs(pos.z - nextPos.z) < 0.01)
+	{
+		actualPath++;
+		nextPos = paths[actualPath].Pos;
+	}
+	float shift = 0.002;
+	m_miller->Translate(XMFLOAT4(shift * Signum(nextPos.x - pos.x), shift * Signum(nextPos.y - pos.y), shift * Signum(nextPos.z - pos.z), 1));
 }
 
-void Scene::UpdateModel(float dt)
+void Scene::UpdateMap(float dt)
 {
-	float angle = modelAnimationSpeed * dt;
-	m_ModelMtx = m_ModelMtx * XMMatrixRotationX(angle) * XMMatrixRotationY(angle) * XMMatrixRotationZ(angle);
+	for (int i = 0; i < m_HeightMap->gridHeight * m_HeightMap->gridWidth; i++)
+	{
+		XMFLOAT3 p = m_HeightMap->cubeVertices[i].Pos;
+		XMVECTOR pos = XMVectorSet(p.x, p.y, p.z, 1);
+		if (m_miller->CheckIfPointIsInside(pos))
+		{
+			m_HeightMap->cubeVertices[i].Pos.y = XMVectorGetY(pos);
+			//XMVECTOR p1 = XMVectorSet(m_HeightMap->cubeVertices[i].Pos.x, m_HeightMap->cubeVertices[i].Pos.y, 
+			//	m_HeightMap->cubeVertices[i].Pos.z, 1);
+			//XMVECTOR p2 = XMVectorSet(m_HeightMap->cubeVertices[i + 1].Pos.x, m_HeightMap->cubeVertices[i + 1].Pos.y, 
+			//	m_HeightMap->cubeVertices[i + 1].Pos.z, 1);
+			//XMVECTOR p3 = XMVectorSet(m_HeightMap->cubeVertices[i + 2].Pos.x, m_HeightMap->cubeVertices[i + 2].Pos.y, 
+			//	m_HeightMap->cubeVertices[i + 2].Pos.z, 1);
+			//XMVECTOR u = p2 - p1;
+			//XMVECTOR v = p3 - p1;
+			//XMVECTOR n = XMVector3Cross(v, u);
+			//m_HeightMap->cubeVertices[i].Normal = XMFLOAT3(XMVectorGetX(n), XMVectorGetY(n), XMVectorGetZ(n));
+		}
+	}
+	m_HeightMap->Update();
 }
 
 void Scene::Render()
@@ -280,27 +321,105 @@ void Scene::Render()
 
 	// Render scene
 	SetLight();
-	DrawModel();
+	DrawCoordinateSystem();
+	DrawMap();
+	DrawMiller();
+
 	TwDraw();
 
 	m_swapChain->Present(0, 0);
 }
 
-void TW_CALL LoadFileCallback(void * a) 
+void Scene::LoadPaths(wstring fileName)
 {
-	Window* mainWindow = static_cast<Window*>(a); 
-	OPENFILENAME ofn = { 0 }; 
+	if (fileName.length() <= 0) return;
+	paths.clear();
+	int pos = 0;
+	while (fileName[pos++] != '.');
+	switch (fileName[pos++])
+	{
+	case 'k':
+		millerSize = 10 * (fileName[pos++] - '0') + fileName[pos] - '0';
+		switch (millerSize)
+		{
+		case 16:
+			millerType = millerType::K16;
+			break;
+		case 8:
+			millerType = millerType::K08;
+			break;
+		case 1:
+			millerType = millerType::K01;
+			break;
+		default:
+			break;
+		}
+		break;
+	case 'f':
+		millerSize = 10 * (fileName[pos++] - '0') + fileName[pos] - '0';
+		switch (millerSize)
+		{
+		case 12:
+			millerType = millerType::F12;
+			break;
+		case 10:
+			millerType = millerType::F10;
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+	ifstream input;
+	//input.exceptions(ios::badbit | ios::failbit);
+	input.open(fileName);
+	while (!input.eof())
+	{
+		VertexPos vs;
+		input.get();
+		input.get();
+		if (input.eof()) break;
+		while (input.get() != 'X');
+		input >> vs.Pos.x;
+		vs.Pos.x /= m_HeightMap->width;
+		input.get();
+		input >> vs.Pos.z;
+		vs.Pos.z /= m_HeightMap->width;
+		input.get();
+		input >> vs.Pos.y;
+		vs.Pos.y /= m_HeightMap->width;
+		paths.push_back(vs);
+	}
+	input.close();
+	SetMillerStartPosition();
+}
+
+void TW_CALL LoadFileCallback(void * a)
+{
+	Service* service = static_cast<Service*>(a);
+	Scene *scene = static_cast<Scene*>(service->Scene);
+	OPENFILENAME ofn = { 0 };
 	TCHAR szFilters[] = TEXT("Instructions files (*.f??)\0*.f*\0Instructions files (*.k??)\0*.k*\0\0"); //txt files (*.txt)|*.txt|All files (*.*)|*.*"
-	TCHAR szFilePathName[_MAX_PATH] = TEXT(""); 
-	ofn.lStructSize = sizeof(OPENFILENAME); 
-	ofn.hwndOwner = mainWindow->getHandle();
-	ofn.lpstrFilter = szFilters; 
-	ofn.lpstrFile = szFilePathName; 
-	ofn.nMaxFile = _MAX_PATH; 
-	ofn.lpstrTitle = TEXT("Open File"); 
-	ofn.Flags = OFN_FILEMUSTEXIST; 
-	GetOpenFileName(&ofn); 
+	TCHAR szFilePathName[_MAX_PATH] = TEXT("");
+	ofn.lStructSize = sizeof(OPENFILENAME);
+	ofn.hwndOwner = scene->getMainWindow()->getHandle();
+	ofn.lpstrFilter = szFilters;
+	ofn.lpstrFile = szFilePathName;
+	ofn.nMaxFile = _MAX_PATH;
+	ofn.lpstrTitle = TEXT("Open File");
+	ofn.Flags = OFN_FILEMUSTEXIST;
+	GetOpenFileName(&ofn);
 	wstring s = (wstring)(ofn.lpstrFile);
+	scene->LoadPaths(s);
+}
+
+void TW_CALL ApplyChangesCallback(void * a)
+{
+	Service* service = static_cast<Service*>(a);
+	Scene *scene = static_cast<Scene*>(service->Scene);
+	scene->RecreateScene();
 }
 
 float Scene::backgroundColor[4] = { 0, 0, 0, 1 };
@@ -311,13 +430,27 @@ void Scene::CreateTweakBar()
 	// Create a tweak bar
 	TwBar *bar = TwNewBar("Options");
 	TwDefine(" GLOBAL help='.' Free C3C Processing Simulator."); // Message added to the help bar.
-	int barSize[2] = { 224, 320 };
+	int barSize[2] = { 224, 350 };
 	TwSetParam(bar, NULL, "size", TW_PARAM_INT32, 2, barSize);
 
+	TwEnumVal twMillerTypeVal[] = { { millerType::K16, "K16" }, { millerType::K08, "K08" }, { millerType::K01, "K01" },
+	{ millerType::F12, "F12" }, { millerType::F10, "F10" }, };
+	TwType twMillerType = TwDefineEnum("MillerType", twMillerTypeVal, 5);
+
 	// Add variables to the tweak bar
-	TwAddButton(bar, "LoadFile", LoadFileCallback, getMainWindow(), "label='Load File'");
-	TwAddVarRW(bar, "Animation", TW_TYPE_BOOLCPP, &modelAnimate, "group=Sponge key=a");
-	TwAddVarRW(bar, "Animation speed", TW_TYPE_FLOAT, &modelAnimationSpeed, "min=-10 max=10 step=0.1 group=Sponge keyincr=+ keydecr=-");
+	TwAddButton(bar, "LoadFile", LoadFileCallback, &service, "label='Load File'");
+	TwAddVarRW(bar, "Play", TW_TYPE_BOOLCPP, &modelAnimate, "group=Animation");
+	TwAddVarRW(bar, "To End", TW_TYPE_BOOLCPP, &jumpToEnd, "group=Animation");
+	TwAddVarRW(bar, "Animation speed", TW_TYPE_FLOAT, &modelAnimationSpeed, "min=-10 max=10 step=0.1 group=Animation keyincr=+ keydecr=-");
+	TwAddVarRW(bar, "Miller Type", twMillerType, &millerType, "group=Parameters");
+	TwAddVarRW(bar, "Grid Rows", TW_TYPE_INT32, &(gridWidth), "group=Parameters");
+	TwAddVarRW(bar, "Grid Cols", TW_TYPE_INT32, &(gridHeight), "group=Parameters");
+	TwAddVarRW(bar, "Width", TW_TYPE_INT32, &(width), "group=Parameters");
+	TwAddVarRW(bar, "Hight", TW_TYPE_INT32, &(height), "group=Parameters");
+	TwAddVarRW(bar, "Maximum Depth", TW_TYPE_FLOAT, &(minY), "group=Parameters");
+	TwAddButton(bar, "Apply Changes", ApplyChangesCallback, &service, "label='Apply Changes'");
+
+
 	TwAddVarRW(bar, "Light direction", TW_TYPE_DIR3F, &lightDirection, "opened=true axisz=-z showval=false");
-	TwAddVarRW(bar, "Background", TW_TYPE_COLOR4F, &backgroundColor, "colormode=hls");
+	TwAddVarRW(bar, "Background", TW_TYPE_COLOR4F, &backgroundColor, "colormode=rgb");
 }

@@ -22,6 +22,12 @@
     <Filter Include="Resource Files\Shaders">
       <UniqueIdentifier>{b7ca902f-e5cc-4f00-bb33-1c3a5a75bc21}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Geometric Modelling">
+      <UniqueIdentifier>{ed4bce3f-5609-46a5-a91a-931ed754703a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Geometric Modelling">
+      <UniqueIdentifier>{2404201d-412b-4918-a102-f2e77ef3c1e2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="gk2_applicationBase.h">
@@ -50,6 +56,21 @@
     </ClInclude>
     <ClInclude Include="gk2_scene.h">
       <Filter>Header Files\Computer Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="coordinateSystem.h">
+      <Filter>Header Files\Geometric Modelling</Filter>
+    </ClInclude>
+    <ClInclude Include="miller.h">
+      <Filter>Header Files\Geometric Modelling</Filter>
+    </ClInclude>
+    <ClInclude Include="modelclass.h">
+      <Filter>Header Files\Geometric Modelling</Filter>
+    </ClInclude>
+    <ClInclude Include="service.h">
+      <Filter>Header Files\Geometric Modelling</Filter>
+    </ClInclude>
+    <ClInclude Include="heightMap.h">
+      <Filter>Header Files\Geometric Modelling</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -82,6 +103,21 @@
     </ClCompile>
     <ClCompile Include="gk2_scene.cpp">
       <Filter>Source Files\Computer Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="coordinateSystem.cpp">
+      <Filter>Source Files\Geometric Modelling</Filter>
+    </ClCompile>
+    <ClCompile Include="miller.cpp">
+      <Filter>Source Files\Geometric Modelling</Filter>
+    </ClCompile>
+    <ClCompile Include="modelclass.cpp">
+      <Filter>Source Files\Geometric Modelling</Filter>
+    </ClCompile>
+    <ClCompile Include="service.cpp">
+      <Filter>Source Files\Geometric Modelling</Filter>
+    </ClCompile>
+    <ClCompile Include="heightMap.cpp">
+      <Filter>Source Files\Geometric Modelling</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

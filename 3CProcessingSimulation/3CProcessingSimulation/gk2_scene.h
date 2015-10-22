@@ -5,6 +5,10 @@
 #include "gk2_camera.h"
 #include <AntTweakBar.h>
 #include <xnamath.h>
+#include "coordinateSystem.h"
+#include "miller.h"
+#include "service.h"
+#include "heightMap.h"
 
 namespace gk2
 {
@@ -16,6 +20,8 @@ namespace gk2
 
 		static void* operator new(size_t size);
 		static void operator delete(void* ptr);
+		void LoadPaths(std::wstring fileName);
+		void RecreateScene();
 
 	protected:
 		virtual bool LoadContent();
@@ -34,6 +40,7 @@ namespace gk2
 
 		//Camera helper
 		gk2::Camera m_camera;
+		Service service;
 
 		//Shaders
 		std::shared_ptr<ID3D11VertexShader> m_vertexShader;
@@ -43,16 +50,14 @@ namespace gk2
 		std::shared_ptr<ID3D11InputLayout> m_inputLayout;
 		std::shared_ptr<ID3D11InputLayout> m_ilBilboard;
 
-		//Model vertex buffer
-		std::shared_ptr<ID3D11Buffer> m_vbModel;
-		//Model index buffer
-		std::shared_ptr<ID3D11Buffer> m_ibModel;
-		//Model indices count
-		int m_ibModelCount = 0;
-		//Model transformation matrix
-		XMMATRIX m_ModelMtx;
 
-		bool modelAnimate = true;
+		HeightMap* m_HeightMap;
+
+		CoordinateSystem* m_coordinateSystem;
+		Miller* m_miller;
+
+		bool modelAnimate = false;
+		bool jumpToEnd = false;
 		float modelAnimationSpeed = 0.5f;
 		static float backgroundColor[4];
 		static float lightDirection[3];
@@ -98,12 +103,41 @@ namespace gk2
 		//Sets up one white positional light at the camera position
 		void SetLight();
 
-		void CreateModel();
-		void UpdateModel(float dt);
-		void DrawModel();
+		void CreateMap();
+		void UpdateMap(float dt);
+		void DrawMap();
+
+		void InitializeService();
+		void CreateCoordinateSystem();
+		void DrawCoordinateSystem();
+		void CreateMiller();
+		void DrawMiller();
+		void UpdateMiller();
 
 		void CreateTweakBar();
 
+		wstring fileName;
+		int millerSize = 16;
+		enum millerType millerType;
+		std::vector<VertexPos> paths;
+		int actualPath;
+
+		int gridWidth = 100, gridHeight = 100;
+		int width = 150, height = 150;
+		float minY = 20;
+
+		int Signum(float x);
+		void SetMillerStartPosition();
+
+	};
+
+	enum millerType
+	{
+		K16,
+		K08,
+		K01,
+		F12,
+		F10
 	};
 }
 
