@@ -137,7 +137,9 @@ void Scene::SetSurfaceColor(const XMFLOAT4& color)
 
 void Scene::SetLight()
 {
-	m_context->UpdateSubresource(m_cbLights.get(), 0, 0, lightDirection, 0, 0);
+	lightPositions[0] = XMFLOAT4(-lightDirection[0], -lightDirection[1], -lightDirection[1], 1);
+	lightPositions[1] = XMFLOAT4(lightDirection[0], lightDirection[1], lightDirection[1], 1);
+	m_context->UpdateSubresource(m_cbLights.get(), 0, 0, lightPositions, 0, 0);
 }
 
 bool Scene::CheckKeys()
@@ -199,10 +201,16 @@ void Scene::Update(float dt)
 	prevState = currentState;
 	if (change)
 		UpdateCamera(m_camera.GetViewMatrix());
-	if (modelAnimate)
+	if (modelAnimate && paths.size() > 0 && !jumpToEnd)
 	{
 		UpdateMap(dt);
-		UpdateMiller();
+		UpdateMiller(NULL, NULL);
+	}
+	if (jumpToEnd)
+	{
+		modelAnimate = true;
+		ProcessFullSimulation();
+		jumpToEnd = false;
 	}
 }
 
@@ -227,17 +235,83 @@ void Scene::CreateMiller()
 void Scene::CreateMap()
 {
 	m_HeightMap = new HeightMap(service);
+	for (size_t i = 0; i < 200; i++)
+	{
+		for (size_t j = 0; j < 200; j++)
+		{
+			activityMap[i][j] = false;
+		}
+	}
+}
+
+void Scene::RecreateMiller()
+{
+	char type;
+	switch (millerType)
+	{
+	case gk2::K16:
+		type = 'k';
+		break;
+	case gk2::K08:
+		type = 'k';
+		break;
+	case gk2::K01:
+		type = 'k';
+		break;
+	case gk2::F12:
+		type = 'f';
+		break;
+	case gk2::F10:
+		type = 'f';
+		break;
+	default:
+		break;
+	}
+
+	delete m_miller;
+	m_miller = new Miller(service, millerSize, type);
+	SetMillerStartPosition();
 }
 
 void Scene::RecreateScene()
 {
 	delete m_HeightMap;
 	delete m_miller;
-	m_miller = new Miller(service, millerSize);
+	char type;
+	switch (millerType)
+	{
+	case gk2::K16:
+		type = 'k';
+		millerSize = 16;
+		break;
+	case gk2::K08:
+		type = 'k';
+		millerSize = 8;
+		break;
+	case gk2::K01:
+		type = 'k';
+		millerSize = 1;
+		break;
+	case gk2::F12:
+		type = 'f';
+		millerSize = 12;
+		break;
+	case gk2::F10:
+		type = 'f';
+		millerSize = 10;
+		break;
+	default:
+		break;
+	}
+	m_miller = new Miller(service, millerSize, type);
 	m_HeightMap = new HeightMap(service, gridWidth, gridHeight, width, height, minY);
-
-	
 	SetMillerStartPosition();
+}
+
+void Scene::ClearMaterial()
+{
+	delete m_HeightMap;
+	m_HeightMap = new HeightMap(service, gridWidth, gridHeight, width, height, minY);
 }
 
 void Scene::DrawCoordinateSystem()
@@ -268,22 +342,33 @@ void Scene::SetMillerStartPosition()
 {
 	if (paths.size() > 0)
 	{
-		m_miller->Translate(XMFLOAT4(paths[0].Pos.x, paths[0].Pos.y - 0.5f, paths[0].Pos.z, 1));
+		auto pos = m_miller->GetPosition();
+		m_miller->Translate(XMFLOAT4(paths[0].Pos.x - pos.x, paths[0].Pos.y - pos.y + m_miller->millerSize / 200.0f, paths[0].Pos.z - pos.z, 1));
 		actualPath = 1;
 	}
 }
 
-void Scene::UpdateMiller()
+void Scene::UpdateMiller(int *dx, int * dy, float step)
 {
 	auto pos = m_miller->GetPosition();
 	auto nextPos = paths[actualPath].Pos;
+	nextPos.y += (m_miller->millerSize / 200.0f);
 	if (abs(pos.x - nextPos.x) + abs(pos.y - nextPos.y) + abs(pos.z - nextPos.z) < 0.01)
 	{
 		actualPath++;
+		if (actualPath >= paths.size())
+		{
+			modelAnimate = false;
+			return;
+		}
 		nextPos = paths[actualPath].Pos;
 	}
 	float shift = 0.002;
 	m_miller->Translate(XMFLOAT4(shift * Signum(nextPos.x - pos.x), shift * Signum(nextPos.y - pos.y), shift * Signum(nextPos.z - pos.z), 1));
+	if (dx != NULL)
+		*dx = Signum(nextPos.x - pos.x);
+	if (dy != NULL)
+		*dy = Signum(nextPos.y - pos.y);
 }
 
 void Scene::UpdateMap(float dt)
@@ -294,20 +379,120 @@ void Scene::UpdateMap(float dt)
 		XMVECTOR pos = XMVectorSet(p.x, p.y, p.z, 1);
 		if (m_miller->CheckIfPointIsInside(pos))
 		{
+			if (XMVectorGetY(pos) < m_HeightMap->minY / 100.0f)
+			{
+				MessageBoxW(NULL, L"You've crossed the line", L"Error", MB_OK);
+				modelAnimate = false;
+				return;
+			}
+			if (m_miller->millerType == 'f' && m_HeightMap->cubeVertices[i].Pos.y < XMVectorGetY(pos))
+			{
+				MessageBoxW(NULL, L"You've destroyed the miller", L"Error", MB_OK);
+				modelAnimate = false;
+				return;
+			}
 			m_HeightMap->cubeVertices[i].Pos.y = XMVectorGetY(pos);
-			//XMVECTOR p1 = XMVectorSet(m_HeightMap->cubeVertices[i].Pos.x, m_HeightMap->cubeVertices[i].Pos.y, 
-			//	m_HeightMap->cubeVertices[i].Pos.z, 1);
-			//XMVECTOR p2 = XMVectorSet(m_HeightMap->cubeVertices[i + 1].Pos.x, m_HeightMap->cubeVertices[i + 1].Pos.y, 
-			//	m_HeightMap->cubeVertices[i + 1].Pos.z, 1);
-			//XMVECTOR p3 = XMVectorSet(m_HeightMap->cubeVertices[i + 2].Pos.x, m_HeightMap->cubeVertices[i + 2].Pos.y, 
-			//	m_HeightMap->cubeVertices[i + 2].Pos.z, 1);
-			//XMVECTOR u = p2 - p1;
-			//XMVECTOR v = p3 - p1;
-			//XMVECTOR n = XMVector3Cross(v, u);
-			//m_HeightMap->cubeVertices[i].Normal = XMFLOAT3(XMVectorGetX(n), XMVectorGetY(n), XMVectorGetZ(n));
 		}
 	}
 	m_HeightMap->Update();
+}
+
+void Scene::ProcessFullSimulation()
+{
+	bresenhamPoints.clear();
+	while (bresenhamPoints.size() == 0)
+	{
+		for (int i = 0; i < m_HeightMap->gridWidth; i++)
+		{
+			for (int j = 0; j < m_HeightMap->gridHeight; j++)
+			{
+				XMFLOAT3 p = m_HeightMap->cubeVertices[i * m_HeightMap->gridHeight + j].Pos;
+				XMVECTOR pos = XMVectorSet(p.x, p.y, p.z, 1);
+				if (m_miller->CheckIfPointIsInside(pos))
+				{
+					m_HeightMap->cubeVertices[i].Pos.y = XMVectorGetY(pos);
+					bresenhamPoints.push_back(XMFLOAT2(i, j));
+					activityMap[i][j] = true;
+				}
+			}
+		}
+		if (bresenhamPoints.size() == 0)
+			UpdateMiller(NULL, NULL);
+	}
+	float step = 1.0 / m_HeightMap->gridWidth;
+	while (modelAnimate && bresenhamPoints.size() != 0)
+	{
+		int dx, dy;
+		UpdateMiller(&dx, &dy, step);
+		for (vector<XMFLOAT2>::iterator it = bresenhamPoints.begin(); it != bresenhamPoints.end(); ++it)
+		{
+			int i = (*it).x;
+			int j = (*it).y;
+			activityMap[i][j] = false;
+			XMFLOAT3 p;
+			XMVECTOR pos;
+			p = m_HeightMap->cubeVertices[(i)* m_HeightMap->gridHeight + j].Pos;
+			pos = XMVectorSet(p.x, p.y, p.z, 1);
+			if (m_miller->CheckIfPointIsInside(pos))
+			{
+				m_HeightMap->cubeVertices[i].Pos.y = XMVectorGetY(pos);
+				if (!activityMap[i][j])
+				{
+					bresenhamNewPoints.push_back(XMFLOAT2(i, j));
+					activityMap[i][j] = true;
+				}
+			}
+			if (dy != 0)
+			{
+				p = m_HeightMap->cubeVertices[(i)* m_HeightMap->gridHeight + j + dy].Pos;
+				pos = XMVectorSet(p.x, p.y, p.z, 1);
+				if (m_miller->CheckIfPointIsInside(pos))
+				{
+					m_HeightMap->cubeVertices[i].Pos.y = XMVectorGetY(pos);
+					if (!activityMap[i][j + dy])
+					{
+						bresenhamNewPoints.push_back(XMFLOAT2(i, j + dy));
+						activityMap[i][j + dy] = true;
+					}
+				}
+			}
+			if (dx != 0)
+			{
+				p = m_HeightMap->cubeVertices[(i + dx)* m_HeightMap->gridHeight + j].Pos;
+				pos = XMVectorSet(p.x, p.y, p.z, 1);
+				if (m_miller->CheckIfPointIsInside(pos))
+				{
+					m_HeightMap->cubeVertices[i].Pos.y = XMVectorGetY(pos);
+					if (!activityMap[i + dx][j])
+					{
+						bresenhamNewPoints.push_back(XMFLOAT2(i + dx, j));
+						activityMap[i + dx][j] = true;
+					}
+				}
+			}
+			if (dx != 0 && dy != 0)
+			{
+				p = m_HeightMap->cubeVertices[(i + dx)* m_HeightMap->gridHeight + j + dy].Pos;
+				pos = XMVectorSet(p.x, p.y, p.z, 1);
+				if (m_miller->CheckIfPointIsInside(pos))
+				{
+					m_HeightMap->cubeVertices[i].Pos.y = XMVectorGetY(pos);
+					if (!activityMap[i + dx][j + dy])
+					{
+						bresenhamNewPoints.push_back(XMFLOAT2(i + dx, j + dy));
+						activityMap[i + dx][j + dy] = true;
+					}
+				}
+			}
+		}
+		bresenhamPoints.clear();
+		for (vector<XMFLOAT2>::iterator it = bresenhamNewPoints.begin(); it != bresenhamNewPoints.end(); ++it)
+		{
+			bresenhamPoints.push_back(*it);
+		}
+		bresenhamNewPoints.clear();
+	}
+	modelAnimate = false;
 }
 
 void Scene::Render()
@@ -393,7 +578,7 @@ void Scene::LoadPaths(wstring fileName)
 		paths.push_back(vs);
 	}
 	input.close();
-	SetMillerStartPosition();
+	RecreateMiller();
 }
 
 void TW_CALL LoadFileCallback(void * a)
@@ -422,8 +607,15 @@ void TW_CALL ApplyChangesCallback(void * a)
 	scene->RecreateScene();
 }
 
+void TW_CALL ClearMaterialCallback(void * a)
+{
+	Service* service = static_cast<Service*>(a);
+	Scene *scene = static_cast<Scene*>(service->Scene);
+	scene->ClearMaterial();
+}
+
 float Scene::backgroundColor[4] = { 0, 0, 0, 1 };
-float Scene::lightDirection[3] = { -0.5f, -0.2f, 1 };
+float Scene::lightDirection[3] = { 0.0f, 1.0f, 0.0f };
 
 void Scene::CreateTweakBar()
 {
@@ -439,9 +631,10 @@ void Scene::CreateTweakBar()
 
 	// Add variables to the tweak bar
 	TwAddButton(bar, "LoadFile", LoadFileCallback, &service, "label='Load File'");
+	TwAddButton(bar, "ClearMaterial", ClearMaterialCallback, &service, "label='Clear Material'");
 	TwAddVarRW(bar, "Play", TW_TYPE_BOOLCPP, &modelAnimate, "group=Animation");
 	TwAddVarRW(bar, "To End", TW_TYPE_BOOLCPP, &jumpToEnd, "group=Animation");
-	TwAddVarRW(bar, "Animation speed", TW_TYPE_FLOAT, &modelAnimationSpeed, "min=-10 max=10 step=0.1 group=Animation keyincr=+ keydecr=-");
+	//TwAddVarRW(bar, "Animation speed", TW_TYPE_FLOAT, &modelAnimationSpeed, "min=-10 max=10 step=0.1 group=Animation keyincr=+ keydecr=-");
 	TwAddVarRW(bar, "Miller Type", twMillerType, &millerType, "group=Parameters");
 	TwAddVarRW(bar, "Grid Rows", TW_TYPE_INT32, &(gridWidth), "group=Parameters");
 	TwAddVarRW(bar, "Grid Cols", TW_TYPE_INT32, &(gridHeight), "group=Parameters");

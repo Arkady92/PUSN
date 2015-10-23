@@ -38,9 +38,13 @@ namespace gk2{
 		int verticesCount;
 		unsigned short* cubeIndicesMesh;
 		unsigned short* cubeIndicesMaterial;
+		std::shared_ptr<ID3D11Buffer> rimIndices;
 		shared_ptr<ID3D11Buffer> indicesPointerMesh;
 		shared_ptr<ID3D11Buffer> indicesPointerMaterial;
 		std::shared_ptr<ID3D11Buffer> m_Vertexes;
+		std::shared_ptr<ID3D11Buffer> m_Rim;
+
+		int indicesRimCount;
 		int indicesMeshCount;
 		int indicesMaterialCount;
 	};

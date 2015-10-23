@@ -162,7 +162,7 @@ void CoordinateSystem::setStereoscopy(bool isStereoscopic)
 void CoordinateSystem::preDraw()
 {
 	m_service.Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-	XMFLOAT4 color = XMFLOAT4(1.0, 0.0, 0.0f, 1.0);
+	XMFLOAT4 color = XMFLOAT4(0.0, 1.0, 0.0f, 1.0);
 	m_service.Context->UpdateSubresource(m_service.cbSurfaceColor.get(), 0, 0, &color, 0, 0);
 	XMFLOAT4 colors[5];
 	ZeroMemory(colors, sizeof(XMFLOAT4) * 5);
@@ -179,7 +179,7 @@ void CoordinateSystem::onDraw()
 	m_service.Context->IASetVertexBuffers(0, 1, &b, &VB_STRIDE_WITH_NORMAL, &VB_OFFSET);
 	m_service.Context->IASetIndexBuffer(m_indexBuffer.get(), DXGI_FORMAT_R16_UINT, 0);
 	m_service.Context->DrawIndexed(indicesCount, 0, 0);
-	XMFLOAT4 color = XMFLOAT4(0.0, 1.0, 0.0f, 1.0);
+	XMFLOAT4 color = XMFLOAT4(1.0, 0.0, 0.0f, 1.0);
 	m_service.Context->UpdateSubresource(m_service.cbSurfaceColor.get(), 0, 0, &color, 0, 0);
 	b = m_vertexBuffer_SquareFirst.get();
 	m_service.Context->IASetVertexBuffers(0, 1, &b, &VB_STRIDE_WITH_NORMAL, &VB_OFFSET);

@@ -22,6 +22,8 @@ namespace gk2
 		static void operator delete(void* ptr);
 		void LoadPaths(std::wstring fileName);
 		void RecreateScene();
+		void RecreateMiller();
+		void ClearMaterial();
 
 	protected:
 		virtual bool LoadContent();
@@ -61,6 +63,7 @@ namespace gk2
 		float modelAnimationSpeed = 0.5f;
 		static float backgroundColor[4];
 		static float lightDirection[3];
+		XMFLOAT4 lightPositions[2];
 
 		//Shader's constant buffer containing Local -> World matrix
 		std::shared_ptr<ID3D11Buffer> m_cbWorld;
@@ -112,7 +115,7 @@ namespace gk2
 		void DrawCoordinateSystem();
 		void CreateMiller();
 		void DrawMiller();
-		void UpdateMiller();
+		void UpdateMiller(int *dx, int *dy, float step = 0.01);
 
 		void CreateTweakBar();
 
@@ -126,9 +129,13 @@ namespace gk2
 		int width = 150, height = 150;
 		float minY = 20;
 
+		bool activityMap[200][200];
+
 		int Signum(float x);
 		void SetMillerStartPosition();
-
+		void ProcessFullSimulation();
+		std::vector<XMFLOAT2> bresenhamPoints;
+		std::vector<XMFLOAT2> bresenhamNewPoints;
 	};
 
 	enum millerType
