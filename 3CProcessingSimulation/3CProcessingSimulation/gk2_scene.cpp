@@ -399,99 +399,122 @@ void Scene::UpdateMap(float dt)
 
 void Scene::ProcessFullSimulation()
 {
-	bresenhamPoints.clear();
-	while (bresenhamPoints.size() == 0)
+	float step = 1.0 / m_HeightMap->gridWidth;
+	int size = m_miller->millerSize;
+	int minI = 0, maxI = m_HeightMap->gridWidth, minJ = 0, maxJ = m_HeightMap->gridHeight;
+	
+	while (modelAnimate && actualPath < paths.size())
 	{
-		for (int i = 0; i < m_HeightMap->gridWidth; i++)
+		bool flag = false;
+		int minX = m_HeightMap->gridWidth, minY = m_HeightMap->gridHeight, maxX = 0, maxY = 0;
+		for (int i = (minI - size) < 0 ? 0 : (minI - size);
+			i < (((maxI + size) > m_HeightMap->gridWidth) ? m_HeightMap->gridWidth : maxI + size); i++)
 		{
-			for (int j = 0; j < m_HeightMap->gridHeight; j++)
+			for (int j = (minJ - size) < 0 ? 0 : (minJ - size);
+				j < (((maxJ + size) > m_HeightMap->gridHeight) ? m_HeightMap->gridHeight : maxJ + size); j++)
 			{
 				XMFLOAT3 p = m_HeightMap->cubeVertices[i * m_HeightMap->gridHeight + j].Pos;
 				XMVECTOR pos = XMVectorSet(p.x, p.y, p.z, 1);
 				if (m_miller->CheckIfPointIsInside(pos))
 				{
-					m_HeightMap->cubeVertices[i].Pos.y = XMVectorGetY(pos);
-					bresenhamPoints.push_back(XMFLOAT2(i, j));
-					activityMap[i][j] = true;
+					m_HeightMap->cubeVertices[i * m_HeightMap->gridHeight + j].Pos.y = XMVectorGetY(pos);
+					flag = true;
+					if (i < minX) minX = i;
+					if (i > maxX) maxX = i;
+					if (j < minY) minY = j;
+					if (j > maxY) maxY = j;
 				}
 			}
 		}
-		if (bresenhamPoints.size() == 0)
-			UpdateMiller(NULL, NULL);
-	}
-	float step = 1.0 / m_HeightMap->gridWidth;
-	while (modelAnimate && bresenhamPoints.size() != 0)
-	{
+		if (flag)
+		{
+			minI = minX;
+			minJ = minY;
+			maxI = maxX;
+			maxJ = maxY;
+		}
+		UpdateMiller(NULL, NULL, step);
+		/*while (modelAnimate && bresenhamPoints.size() != 0)
+		{
 		int dx, dy;
 		UpdateMiller(&dx, &dy, step);
 		for (vector<XMFLOAT2>::iterator it = bresenhamPoints.begin(); it != bresenhamPoints.end(); ++it)
 		{
-			int i = (*it).x;
-			int j = (*it).y;
-			activityMap[i][j] = false;
-			XMFLOAT3 p;
-			XMVECTOR pos;
-			p = m_HeightMap->cubeVertices[(i)* m_HeightMap->gridHeight + j].Pos;
-			pos = XMVectorSet(p.x, p.y, p.z, 1);
-			if (m_miller->CheckIfPointIsInside(pos))
-			{
-				m_HeightMap->cubeVertices[i].Pos.y = XMVectorGetY(pos);
-				if (!activityMap[i][j])
-				{
-					bresenhamNewPoints.push_back(XMFLOAT2(i, j));
-					activityMap[i][j] = true;
-				}
-			}
-			if (dy != 0)
-			{
-				p = m_HeightMap->cubeVertices[(i)* m_HeightMap->gridHeight + j + dy].Pos;
-				pos = XMVectorSet(p.x, p.y, p.z, 1);
-				if (m_miller->CheckIfPointIsInside(pos))
-				{
-					m_HeightMap->cubeVertices[i].Pos.y = XMVectorGetY(pos);
-					if (!activityMap[i][j + dy])
-					{
-						bresenhamNewPoints.push_back(XMFLOAT2(i, j + dy));
-						activityMap[i][j + dy] = true;
-					}
-				}
-			}
-			if (dx != 0)
-			{
-				p = m_HeightMap->cubeVertices[(i + dx)* m_HeightMap->gridHeight + j].Pos;
-				pos = XMVectorSet(p.x, p.y, p.z, 1);
-				if (m_miller->CheckIfPointIsInside(pos))
-				{
-					m_HeightMap->cubeVertices[i].Pos.y = XMVectorGetY(pos);
-					if (!activityMap[i + dx][j])
-					{
-						bresenhamNewPoints.push_back(XMFLOAT2(i + dx, j));
-						activityMap[i + dx][j] = true;
-					}
-				}
-			}
-			if (dx != 0 && dy != 0)
-			{
-				p = m_HeightMap->cubeVertices[(i + dx)* m_HeightMap->gridHeight + j + dy].Pos;
-				pos = XMVectorSet(p.x, p.y, p.z, 1);
-				if (m_miller->CheckIfPointIsInside(pos))
-				{
-					m_HeightMap->cubeVertices[i].Pos.y = XMVectorGetY(pos);
-					if (!activityMap[i + dx][j + dy])
-					{
-						bresenhamNewPoints.push_back(XMFLOAT2(i + dx, j + dy));
-						activityMap[i + dx][j + dy] = true;
-					}
-				}
-			}
+		int i = (*it).x;
+		int j = (*it).y;
+		if (i < minX) minX = i;
+		if (i > maxX) maxX = i;
+		if (j < minY) minY = j;
+		if (j > maxY) maxY = j;*/
+		/*int i = (*it).x;
+		int j = (*it).y;
+		activityMap[i][j] = false;
+		XMFLOAT3 p;
+		XMVECTOR pos;
+		p = m_HeightMap->cubeVertices[(i)* m_HeightMap->gridHeight + j].Pos;
+		pos = XMVectorSet(p.x, p.y, p.z, 1);
+		if (m_miller->CheckIfPointIsInside(pos))
+		{
+		m_HeightMap->cubeVertices[i].Pos.y = XMVectorGetY(pos);
+		if (!activityMap[i][j])
+		{
+		bresenhamNewPoints.push_back(XMFLOAT2(i, j));
+		activityMap[i][j] = true;
+		}
+		}
+		if (dy != 0)
+		{
+		p = m_HeightMap->cubeVertices[(i)* m_HeightMap->gridHeight + j + dy].Pos;
+		pos = XMVectorSet(p.x, p.y, p.z, 1);
+		if (m_miller->CheckIfPointIsInside(pos))
+		{
+		m_HeightMap->cubeVertices[i].Pos.y = XMVectorGetY(pos);
+		if (!activityMap[i][j + dy])
+		{
+		bresenhamNewPoints.push_back(XMFLOAT2(i, j + dy));
+		activityMap[i][j + dy] = true;
+		}
+		}
+		}
+		if (dx != 0)
+		{
+		p = m_HeightMap->cubeVertices[(i + dx)* m_HeightMap->gridHeight + j].Pos;
+		pos = XMVectorSet(p.x, p.y, p.z, 1);
+		if (m_miller->CheckIfPointIsInside(pos))
+		{
+		m_HeightMap->cubeVertices[i].Pos.y = XMVectorGetY(pos);
+		if (!activityMap[i + dx][j])
+		{
+		bresenhamNewPoints.push_back(XMFLOAT2(i + dx, j));
+		activityMap[i + dx][j] = true;
+		}
+		}
+		}
+		if (dx != 0 && dy != 0)
+		{
+		p = m_HeightMap->cubeVertices[(i + dx)* m_HeightMap->gridHeight + j + dy].Pos;
+		pos = XMVectorSet(p.x, p.y, p.z, 1);
+		if (m_miller->CheckIfPointIsInside(pos))
+		{
+		m_HeightMap->cubeVertices[i].Pos.y = XMVectorGetY(pos);
+		if (!activityMap[i + dx][j + dy])
+		{
+		bresenhamNewPoints.push_back(XMFLOAT2(i + dx, j + dy));
+		activityMap[i + dx][j + dy] = true;
+		}
+		}
+		}
 		}
 		bresenhamPoints.clear();
 		for (vector<XMFLOAT2>::iterator it = bresenhamNewPoints.begin(); it != bresenhamNewPoints.end(); ++it)
 		{
-			bresenhamPoints.push_back(*it);
+		bresenhamPoints.push_back(*it);
 		}
-		bresenhamNewPoints.clear();
+		bresenhamNewPoints.clear();*/
+		//	}
+		//}
 	}
+	m_HeightMap->Update();
 	modelAnimate = false;
 }
 
