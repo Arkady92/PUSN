@@ -38,9 +38,9 @@ void HeightMap::InitializeMap(int n, int m)
 
 	int lowIndex = 0;
 	// Read the image data into the height map.
-	for (int j = 0; j<n; j++)
+	for (int j = 0; j < n; j++)
 	{
-		for (int i = 0; i<m; i++)
+		for (int i = 0; i < m; i++)
 		{
 			float x = (((float)i / (float)(m - 1)) - 0.5) * width / 100;
 			float size = 50.0f;
@@ -268,9 +268,12 @@ void HeightMap::Draw()
 	m_service.Context->IASetIndexBuffer(indicesPointerMesh.get(), DXGI_FORMAT_R16_UINT, 0);
 	m_service.Context->DrawIndexed(indicesMeshCount, 0, 0);
 
-	m_service.Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	m_service.Context->IASetIndexBuffer(indicesPointerMesh.get(), DXGI_FORMAT_R16_UINT, 0);
-	m_service.Context->DrawIndexed(indicesMaterialCount, 0, 0);
+	if (shadingEnabled)
+	{
+		m_service.Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		m_service.Context->IASetIndexBuffer(indicesPointerMaterial.get(), DXGI_FORMAT_R16_UINT, 0);
+		m_service.Context->DrawIndexed(indicesMaterialCount, 0, 0);
+	}
 }
 
 

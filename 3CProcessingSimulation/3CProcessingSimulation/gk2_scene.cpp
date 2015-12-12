@@ -71,8 +71,13 @@ void Scene::InitializeCamera()
 	float ar = static_cast<float>(s.cx) / s.cy;
 	m_projMtx = XMMatrixPerspectiveFovLH(XM_PIDIV4, ar, 0.01f, 100.0f);
 	m_context->UpdateSubresource(m_cbProj.get(), 0, 0, &m_projMtx, 0, 0);
+	m_camera.MoveCamera(12.0f, 0.0f, 0.0f);
+	m_camera.Rotate(0.0f, 3.14f);
+	m_camera.MoveCamera(0.0f, 0.0f, 2.5f);
+	m_camera.Rotate(0.65f, 0.0f);
+	m_camera.MoveCamera(0.0f, 2.0f, 0.0f);
+	m_camera.Rotate(0.0f, 0.75f);
 	m_camera.Zoom(5);
-	m_camera.Rotate(XM_PIDIV4, 0.0f);
 	UpdateCamera(m_camera.GetViewMatrix());
 }
 
@@ -142,35 +147,40 @@ void Scene::SetLight()
 	m_context->UpdateSubresource(m_cbLights.get(), 0, 0, lightPositions, 0, 0);
 }
 
-bool Scene::CheckKeys()
+bool Scene::CheckKeys(float dt)
 {
 	bool change = false;
-	const float step = 1 / 300.f;
+	float factor = dt;
 	KeyboardState currentKeyboardState;
 	if (m_keyboard->GetState(currentKeyboardState))
 	{
-
-		if (currentKeyboardState.isKeyDown(DIK_W) || currentKeyboardState.isKeyDown(DIK_UP))
-		{
-			m_camera.MoveCamera(0, step);
+		if (currentKeyboardState.isKeyDown(DIK_Q) || currentKeyboardState.isKeyDown(DIK_RSHIFT)){
+			m_camera.MoveCamera(0, 0, factor);
 			change = true;
 		}
 
-		if (currentKeyboardState.isKeyDown(DIK_S) || currentKeyboardState.isKeyDown(DIK_DOWN))
-		{
-			m_camera.MoveCamera(0, -step);
+		if (currentKeyboardState.isKeyDown(DIK_Z) || currentKeyboardState.isKeyDown(DIK_RCONTROL)){
+			m_camera.MoveCamera(0, 0, -factor);
 			change = true;
 		}
 
-		if (currentKeyboardState.isKeyDown(DIK_A) || currentKeyboardState.isKeyDown(DIK_LEFT))
-		{
-			m_camera.MoveCamera(-step, 0);
+		if (currentKeyboardState.isKeyDown(DIK_W) || currentKeyboardState.isKeyDown(DIK_UP)){
+			m_camera.MoveCamera(factor, 0, 0);
 			change = true;
 		}
 
-		if (currentKeyboardState.isKeyDown(DIK_D) || currentKeyboardState.isKeyDown(DIK_RIGHT))
-		{
-			m_camera.MoveCamera(step, 0);
+		if (currentKeyboardState.isKeyDown(DIK_S) || currentKeyboardState.isKeyDown(DIK_DOWN)){
+			m_camera.MoveCamera(-factor, 0, 0);
+			change = true;
+		}
+
+		if (currentKeyboardState.isKeyDown(DIK_A) || currentKeyboardState.isKeyDown(DIK_LEFT)){
+			m_camera.MoveCamera(0, factor, 0);
+			change = true;
+		}
+
+		if (currentKeyboardState.isKeyDown(DIK_D) || currentKeyboardState.isKeyDown(DIK_RIGHT)){
+			m_camera.MoveCamera(0, -factor, 0);
 			change = true;
 		}
 	}
@@ -187,20 +197,21 @@ void Scene::Update(float dt)
 	if (prevState.isButtonDown(0))
 	{
 		POINT d = currentState.getMousePositionChange();
-		m_camera.Rotate(d.y / 300.f, d.x / 300.f);
+		m_camera.Rotate(d.y / 400.f, d.x / 400.f);
 	}
 	else if (prevState.isButtonDown(1))
 	{
 		POINT d = currentState.getMousePositionChange();
-		m_camera.Zoom(d.y / 50.0f);
+		m_camera.Zoom(d.y / 10.0f);
 	}
 	else
 		change = false;
-	if (CheckKeys())
+	if (CheckKeys(dt))
 		change = true;
 	prevState = currentState;
 	if (change)
 		UpdateCamera(m_camera.GetViewMatrix());
+	m_HeightMap->shadingEnabled = shadingEnabled;
 	if (modelAnimate && paths.size() > 0 && !jumpToEnd)
 	{
 		UpdateMap(dt);
@@ -235,13 +246,6 @@ void Scene::CreateMiller()
 void Scene::CreateMap()
 {
 	m_HeightMap = new HeightMap(service);
-	for (size_t i = 0; i < 200; i++)
-	{
-		for (size_t j = 0; j < 200; j++)
-		{
-			activityMap[i][j] = false;
-		}
-	}
 }
 
 void Scene::RecreateMiller()
@@ -343,7 +347,8 @@ void Scene::SetMillerStartPosition()
 	if (paths.size() > 0)
 	{
 		auto pos = m_miller->GetPosition();
-		m_miller->Translate(XMFLOAT4(paths[0].Pos.x - pos.x, paths[0].Pos.y - pos.y + m_miller->millerSize / 200.0f, paths[0].Pos.z - pos.z, 1));
+		m_miller->Translate(XMFLOAT4(paths[0].Pos.x - pos.x, paths[0].Pos.y - pos.y +
+			((m_miller->millerType == 'k') ? (m_miller->millerSize / 200.0f) : 0), paths[0].Pos.z - pos.z, 1));
 		actualPath = 1;
 	}
 }
@@ -352,9 +357,15 @@ void Scene::UpdateMiller(int *dx, int * dy, float step)
 {
 	auto pos = m_miller->GetPosition();
 	auto nextPos = paths[actualPath].Pos;
-	nextPos.y += (m_miller->millerSize / 200.0f);
-	if (abs(pos.x - nextPos.x) + abs(pos.y - nextPos.y) + abs(pos.z - nextPos.z) < 0.01)
+	if (m_miller->millerType == 'k')
+		nextPos.y += (m_miller->millerSize / 200.0f);
+	if (abs(pos.x - nextPos.x) + abs(pos.y - nextPos.y) + abs(pos.z - nextPos.z) < 0.0065)
 	{
+		m_miller->Translate(XMFLOAT4(nextPos.x - pos.x, nextPos.y - pos.y, nextPos.z - pos.z, 1));
+		if (dx != NULL)
+			*dx = Signum(nextPos.x - pos.x);
+		if (dy != NULL)
+			*dy = Signum(nextPos.y - pos.y);
 		actualPath++;
 		if (actualPath >= paths.size())
 		{
@@ -362,6 +373,9 @@ void Scene::UpdateMiller(int *dx, int * dy, float step)
 			return;
 		}
 		nextPos = paths[actualPath].Pos;
+		if (m_miller->millerType == 'k')
+			nextPos.y += (m_miller->millerSize / 200.0f);
+		return;
 	}
 	float shift = 0.002;
 	m_miller->Translate(XMFLOAT4(shift * Signum(nextPos.x - pos.x), shift * Signum(nextPos.y - pos.y), shift * Signum(nextPos.z - pos.z), 1));
@@ -373,28 +387,76 @@ void Scene::UpdateMiller(int *dx, int * dy, float step)
 
 void Scene::UpdateMap(float dt)
 {
-	for (int i = 0; i < m_HeightMap->gridHeight * m_HeightMap->gridWidth; i++)
+	mapModificated = false;
+	for (int i = 0; i < m_HeightMap->gridWidth; i++)
 	{
-		XMFLOAT3 p = m_HeightMap->cubeVertices[i].Pos;
-		XMVECTOR pos = XMVectorSet(p.x, p.y, p.z, 1);
-		if (m_miller->CheckIfPointIsInside(pos))
+		for (int j = 0; j < m_HeightMap->gridHeight; j++)
 		{
-			if (XMVectorGetY(pos) < m_HeightMap->minY / 100.0f)
+			XMFLOAT3 p = m_HeightMap->cubeVertices[i * m_HeightMap->gridHeight + j].Pos;
+			XMVECTOR pos = XMVectorSet(p.x, p.y, p.z, 1);
+			if (m_miller->CheckIfPointIsInside(pos))
 			{
-				MessageBoxW(NULL, L"You've crossed the line", L"Error", MB_OK);
-				modelAnimate = false;
-				return;
+				if (XMVectorGetY(pos) < m_HeightMap->minY / 100.0f)
+				{
+					MessageBoxW(NULL, L"You've crossed the line", L"Error", MB_OK);
+					modelAnimate = false;
+					return;
+				}
+				if ((m_miller->millerType == 'f') && mapModificated && XMVectorGetY(pos) + EPSILON < lastFlatY)
+				{
+					MessageBoxW(NULL, L"You've destroyed the miller", L"Error", MB_OK);
+					modelAnimate = false;
+					return;
+				}
+				m_HeightMap->cubeVertices[i * m_HeightMap->gridHeight + j].Pos.y = XMVectorGetY(pos);
+				mapModificated = true;
+				if (m_miller->millerType == 'f')
+					lastFlatY = XMVectorGetY(pos);
+				if (i <= 1 || i >= m_HeightMap->gridWidth - 2 || j <= 1 || j >= m_HeightMap->gridHeight - 2)
+					continue;
+				m_HeightMap->cubeVertices[i * m_HeightMap->gridHeight + j].Normal = CalculateNormal(i, j);
+				m_HeightMap->cubeVertices[i * m_HeightMap->gridHeight + j + 1].Normal = CalculateNormal(i, j + 1);
+				m_HeightMap->cubeVertices[i * m_HeightMap->gridHeight + j - 1].Normal = CalculateNormal(i, j - 1);
+				m_HeightMap->cubeVertices[(i + 1) * m_HeightMap->gridHeight + j].Normal = CalculateNormal(i + 1, j);
+				m_HeightMap->cubeVertices[(i - 1) * m_HeightMap->gridHeight + j].Normal = CalculateNormal(i - 1, j);
 			}
-			if (m_miller->millerType == 'f' && m_HeightMap->cubeVertices[i].Pos.y < XMVectorGetY(pos))
-			{
-				MessageBoxW(NULL, L"You've destroyed the miller", L"Error", MB_OK);
-				modelAnimate = false;
-				return;
-			}
-			m_HeightMap->cubeVertices[i].Pos.y = XMVectorGetY(pos);
 		}
 	}
 	m_HeightMap->Update();
+}
+
+void Scene::CalculateNormals()
+{
+	for (int i = 2; i < m_HeightMap->gridWidth - 2; i++)
+	{
+		for (int j = 2; j < m_HeightMap->gridHeight - 2; j++)
+		{
+			m_HeightMap->cubeVertices[i * m_HeightMap->gridHeight + j].Normal = CalculateNormal(i, j);
+		}
+	}
+}
+
+XMFLOAT3 Scene::CalculateNormal(int i, int j)
+{
+	XMVECTOR p0 = XMVectorSet(m_HeightMap->cubeVertices[i * m_HeightMap->gridHeight + j].Pos.x, m_HeightMap->cubeVertices[i * m_HeightMap->gridHeight + j].Pos.y, m_HeightMap->cubeVertices[i * m_HeightMap->gridHeight + j].Pos.z, 1);
+	XMVECTOR p1 = XMVectorSet(m_HeightMap->cubeVertices[i * m_HeightMap->gridHeight + j - 1].Pos.x, m_HeightMap->cubeVertices[i * m_HeightMap->gridHeight + j - 1].Pos.y, m_HeightMap->cubeVertices[i * m_HeightMap->gridHeight + j - 1].Pos.z, 1);
+	XMVECTOR p2 = XMVectorSet(m_HeightMap->cubeVertices[(i - 1) * m_HeightMap->gridHeight + j].Pos.x, m_HeightMap->cubeVertices[(i - 1) * m_HeightMap->gridHeight + j].Pos.y, m_HeightMap->cubeVertices[(i - 1) * m_HeightMap->gridHeight + j].Pos.z, 1);
+	XMVECTOR p3 = XMVectorSet(m_HeightMap->cubeVertices[i * m_HeightMap->gridHeight + j + 1].Pos.x, m_HeightMap->cubeVertices[i * m_HeightMap->gridHeight + j + 1].Pos.y, m_HeightMap->cubeVertices[i * m_HeightMap->gridHeight + j + 1].Pos.z, 1);
+	XMVECTOR p4 = XMVectorSet(m_HeightMap->cubeVertices[(i + 1) * m_HeightMap->gridHeight + j].Pos.x, m_HeightMap->cubeVertices[(i + 1) * m_HeightMap->gridHeight + j].Pos.y, m_HeightMap->cubeVertices[(i + 1) * m_HeightMap->gridHeight + j].Pos.z, 1);
+	XMVECTOR p5 = XMVectorSet(m_HeightMap->cubeVertices[(i - 1) * m_HeightMap->gridHeight + j].Pos.x, m_HeightMap->cubeVertices[(i + 1) * m_HeightMap->gridHeight + j].Pos.y, m_HeightMap->cubeVertices[(i + 1) * m_HeightMap->gridHeight + j].Pos.z, 1);
+	XMVECTOR p6 = XMVectorSet(m_HeightMap->cubeVertices[(i + 1) * m_HeightMap->gridHeight + j].Pos.x, m_HeightMap->cubeVertices[(i + 1) * m_HeightMap->gridHeight + j].Pos.y, m_HeightMap->cubeVertices[(i + 1) * m_HeightMap->gridHeight + j].Pos.z, 1);
+	XMVECTOR u = p1 - p0;
+	XMVECTOR v = p2 - p0;
+	XMVECTOR s = p3 - p0;
+	XMVECTOR t = p4 - p0;
+	XMVECTOR n1 = XMVector3Cross(v, u);
+	XMVECTOR n2 = XMVector3Cross(s, v);
+	XMVECTOR n3 = XMVector3Cross(t, s);
+	XMVECTOR n4 = XMVector3Cross(u, t);
+	float nx = (XMVectorGetX(n1) + XMVectorGetX(n2) + XMVectorGetX(n3) + XMVectorGetX(n4)) / 4;
+	float ny = (XMVectorGetY(n1) + XMVectorGetY(n2) + XMVectorGetY(n3) + XMVectorGetY(n4)) / 4;
+	float nz = (XMVectorGetZ(n1) + XMVectorGetZ(n2) + XMVectorGetZ(n3) + XMVectorGetZ(n4)) / 4;
+	return XMFLOAT3(nx, ny, nz);
 }
 
 void Scene::ProcessFullSimulation()
@@ -402,9 +464,10 @@ void Scene::ProcessFullSimulation()
 	float step = 1.0 / m_HeightMap->gridWidth;
 	int size = m_miller->millerSize;
 	int minI = 0, maxI = m_HeightMap->gridWidth, minJ = 0, maxJ = m_HeightMap->gridHeight;
-	
+
 	while (modelAnimate && actualPath < paths.size())
 	{
+		mapModificated = false;
 		bool flag = false;
 		int minX = m_HeightMap->gridWidth, minY = m_HeightMap->gridHeight, maxX = 0, maxY = 0;
 		for (int i = (minI - size) < 0 ? 0 : (minI - size);
@@ -417,7 +480,22 @@ void Scene::ProcessFullSimulation()
 				XMVECTOR pos = XMVectorSet(p.x, p.y, p.z, 1);
 				if (m_miller->CheckIfPointIsInside(pos))
 				{
+					if (XMVectorGetY(pos) < m_HeightMap->minY / 100.0f)
+					{
+						MessageBoxW(NULL, L"You've crossed the line", L"Error", MB_OK);
+						modelAnimate = false;
+						return;
+					}
+					if ((m_miller->millerType == 'f') && mapModificated && XMVectorGetY(pos) + EPSILON < lastFlatY)
+					{
+						MessageBoxW(NULL, L"You've destroyed the miller", L"Error", MB_OK);
+						modelAnimate = false;
+						return;
+					}
 					m_HeightMap->cubeVertices[i * m_HeightMap->gridHeight + j].Pos.y = XMVectorGetY(pos);
+					mapModificated = true;
+					if (m_miller->millerType == 'f')
+						lastFlatY = XMVectorGetY(pos);
 					flag = true;
 					if (i < minX) minX = i;
 					if (i > maxX) maxX = i;
@@ -434,86 +512,8 @@ void Scene::ProcessFullSimulation()
 			maxJ = maxY;
 		}
 		UpdateMiller(NULL, NULL, step);
-		/*while (modelAnimate && bresenhamPoints.size() != 0)
-		{
-		int dx, dy;
-		UpdateMiller(&dx, &dy, step);
-		for (vector<XMFLOAT2>::iterator it = bresenhamPoints.begin(); it != bresenhamPoints.end(); ++it)
-		{
-		int i = (*it).x;
-		int j = (*it).y;
-		if (i < minX) minX = i;
-		if (i > maxX) maxX = i;
-		if (j < minY) minY = j;
-		if (j > maxY) maxY = j;*/
-		/*int i = (*it).x;
-		int j = (*it).y;
-		activityMap[i][j] = false;
-		XMFLOAT3 p;
-		XMVECTOR pos;
-		p = m_HeightMap->cubeVertices[(i)* m_HeightMap->gridHeight + j].Pos;
-		pos = XMVectorSet(p.x, p.y, p.z, 1);
-		if (m_miller->CheckIfPointIsInside(pos))
-		{
-		m_HeightMap->cubeVertices[i].Pos.y = XMVectorGetY(pos);
-		if (!activityMap[i][j])
-		{
-		bresenhamNewPoints.push_back(XMFLOAT2(i, j));
-		activityMap[i][j] = true;
-		}
-		}
-		if (dy != 0)
-		{
-		p = m_HeightMap->cubeVertices[(i)* m_HeightMap->gridHeight + j + dy].Pos;
-		pos = XMVectorSet(p.x, p.y, p.z, 1);
-		if (m_miller->CheckIfPointIsInside(pos))
-		{
-		m_HeightMap->cubeVertices[i].Pos.y = XMVectorGetY(pos);
-		if (!activityMap[i][j + dy])
-		{
-		bresenhamNewPoints.push_back(XMFLOAT2(i, j + dy));
-		activityMap[i][j + dy] = true;
-		}
-		}
-		}
-		if (dx != 0)
-		{
-		p = m_HeightMap->cubeVertices[(i + dx)* m_HeightMap->gridHeight + j].Pos;
-		pos = XMVectorSet(p.x, p.y, p.z, 1);
-		if (m_miller->CheckIfPointIsInside(pos))
-		{
-		m_HeightMap->cubeVertices[i].Pos.y = XMVectorGetY(pos);
-		if (!activityMap[i + dx][j])
-		{
-		bresenhamNewPoints.push_back(XMFLOAT2(i + dx, j));
-		activityMap[i + dx][j] = true;
-		}
-		}
-		}
-		if (dx != 0 && dy != 0)
-		{
-		p = m_HeightMap->cubeVertices[(i + dx)* m_HeightMap->gridHeight + j + dy].Pos;
-		pos = XMVectorSet(p.x, p.y, p.z, 1);
-		if (m_miller->CheckIfPointIsInside(pos))
-		{
-		m_HeightMap->cubeVertices[i].Pos.y = XMVectorGetY(pos);
-		if (!activityMap[i + dx][j + dy])
-		{
-		bresenhamNewPoints.push_back(XMFLOAT2(i + dx, j + dy));
-		activityMap[i + dx][j + dy] = true;
-		}
-		}
-		}
-		}
-		bresenhamPoints.clear();
-		for (vector<XMFLOAT2>::iterator it = bresenhamNewPoints.begin(); it != bresenhamNewPoints.end(); ++it)
-		{
-		bresenhamPoints.push_back(*it);
-		}
-		bresenhamNewPoints.clear();*/
-		//	}
-		//}
 	}
+	CalculateNormals();
 	m_HeightMap->Update();
 	modelAnimate = false;
 }
@@ -536,6 +536,21 @@ void Scene::Render()
 	TwDraw();
 
 	m_swapChain->Present(0, 0);
+}
+
+void Scene::SetMap()
+{
+	ifstream input;
+	input.open("resources/paths/heightMap.txt");
+	float value;
+	for (size_t i = 0; i < 150 * 150; i++)
+	{
+		if (input.eof()) break;
+		input >> value;
+		m_HeightMap->cubeVertices[i].Pos.y = value;
+	}
+	input.close();
+	m_HeightMap->Update();
 }
 
 void Scene::LoadPaths(wstring fileName)
@@ -581,7 +596,6 @@ void Scene::LoadPaths(wstring fileName)
 		break;
 	}
 	ifstream input;
-	//input.exceptions(ios::badbit | ios::failbit);
 	input.open(fileName);
 	while (!input.eof())
 	{
@@ -591,13 +605,13 @@ void Scene::LoadPaths(wstring fileName)
 		if (input.eof()) break;
 		while (input.get() != 'X');
 		input >> vs.Pos.x;
-		vs.Pos.x /= m_HeightMap->width;
+		vs.Pos.x *= m_HeightMap->scale;
 		input.get();
 		input >> vs.Pos.z;
-		vs.Pos.z /= m_HeightMap->width;
+		vs.Pos.z *= m_HeightMap->scale;
 		input.get();
 		input >> vs.Pos.y;
-		vs.Pos.y /= m_HeightMap->width;
+		vs.Pos.y *= m_HeightMap->scale;
 		paths.push_back(vs);
 	}
 	input.close();
@@ -628,6 +642,7 @@ void TW_CALL ApplyChangesCallback(void * a)
 	Service* service = static_cast<Service*>(a);
 	Scene *scene = static_cast<Scene*>(service->Scene);
 	scene->RecreateScene();
+	scene->SetMap();
 }
 
 void TW_CALL ClearMaterialCallback(void * a)
@@ -645,7 +660,7 @@ void Scene::CreateTweakBar()
 	// Create a tweak bar
 	TwBar *bar = TwNewBar("Options");
 	TwDefine(" GLOBAL help='.' Free C3C Processing Simulator."); // Message added to the help bar.
-	int barSize[2] = { 224, 350 };
+	int barSize[2] = { 224, 370 };
 	TwSetParam(bar, NULL, "size", TW_PARAM_INT32, 2, barSize);
 
 	TwEnumVal twMillerTypeVal[] = { { millerType::K16, "K16" }, { millerType::K08, "K08" }, { millerType::K01, "K01" },
@@ -666,7 +681,7 @@ void Scene::CreateTweakBar()
 	TwAddVarRW(bar, "Maximum Depth", TW_TYPE_FLOAT, &(minY), "group=Parameters");
 	TwAddButton(bar, "Apply Changes", ApplyChangesCallback, &service, "label='Apply Changes'");
 
-
-	TwAddVarRW(bar, "Light direction", TW_TYPE_DIR3F, &lightDirection, "opened=true axisz=-z showval=false");
-	TwAddVarRW(bar, "Background", TW_TYPE_COLOR4F, &backgroundColor, "colormode=rgb");
+	TwAddVarRW(bar, "Enable shading", TW_TYPE_BOOLCPP, &shadingEnabled, "group=Display");
+	TwAddVarRW(bar, "Light direction", TW_TYPE_DIR3F, &lightDirection, "opened=true axisz=-z showval=false group=Display");
+	TwAddVarRW(bar, "Background", TW_TYPE_COLOR4F, &backgroundColor, "colormode=rgb group=Display");
 }

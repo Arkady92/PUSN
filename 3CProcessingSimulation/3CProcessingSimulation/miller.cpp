@@ -28,29 +28,36 @@ Miller::~Miller()
 
 bool Miller::CheckIfPointIsInside(XMVECTOR& pos)
 {
-	XMVECTOR miller_center = XMVectorSet(GetPosition3().x, GetPosition3().y, GetPosition3().z, 1);
-	if (XMVectorGetY(pos) > XMVectorGetY(miller_center))
-		pos = XMVectorSetY(pos, XMVectorGetY(miller_center));
-	XMVECTOR len = (pos - miller_center) * (pos - miller_center);
+	bool miling = false;
+	XMVECTOR miller_contactPoint = XMVectorSet(GetPosition3().x, GetPosition3().y, GetPosition3().z, 1);
+	if (XMVectorGetY(pos) >= XMVectorGetY(miller_contactPoint))
+	{
+		pos = XMVectorSetY(pos, XMVectorGetY(miller_contactPoint));
+		miling = true;
+	}
+	XMVECTOR len = (pos - miller_contactPoint) * (pos - miller_contactPoint);
 	float abs = 0;
 	float l = XMVectorGetX(XMVector3Length(len));
 	float diff = l - m_radius * m_radius;
-
 	if (l < (m_radius * m_radius - abs))
 	{
 		if (millerType == 'k')
-			calculateOffset(pos, miller_center);
-		return true;
+		{
+			calculateOffset(pos, miller_contactPoint);
+			return true;
+		}
+		else
+			return miling;
 	}
 	return false;
 }
 
-void Miller::calculateOffset(XMVECTOR& pos, XMVECTOR& miller_center)
+void Miller::calculateOffset(XMVECTOR& pos, XMVECTOR& miller_contactPoint)
 {
 	XMVECTOR o, cen, l, d;
 	float r = m_radius;
 	o = pos;
-	cen = miller_center;
+	cen = miller_contactPoint;
 	l = XMVectorSet(0, -1, 0, 1);
 
 	double A = XMVectorGetX(XMVector3LengthSq(l));

@@ -24,6 +24,7 @@ namespace gk2
 		void RecreateScene();
 		void RecreateMiller();
 		void ClearMaterial();
+		void SetMap();
 
 	protected:
 		virtual bool LoadContent();
@@ -89,7 +90,7 @@ namespace gk2
 		void InitializeCamera();
 
 		//Handles keyboard actions
-		bool CheckKeys();
+		bool CheckKeys(float dt);
 
 		//Updates camera-related constant buffers
 		void UpdateCamera(const XMMATRIX& view);
@@ -128,14 +129,21 @@ namespace gk2
 		int gridWidth = 100, gridHeight = 100;
 		int width = 150, height = 150;
 		float minY = 20;
-
-		bool activityMap[200][200];
+		float lastFlatY = 0;
+		const float EPSILON = 0.001;
+		bool mapModificated = false;
+		bool shadingEnabled = false;
+		float minerr = 1000;
+		float maxerr = 0;
 
 		int Signum(float x);
 		void SetMillerStartPosition();
 		void ProcessFullSimulation();
 		std::vector<XMFLOAT2> bresenhamPoints;
 		std::vector<XMFLOAT2> bresenhamNewPoints;
+		XMFLOAT3 CalculateNormal(int i, int j);
+		void CalculateNormals();
+
 	};
 
 	enum millerType

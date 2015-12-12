@@ -12,7 +12,7 @@ namespace gk2{
 	class HeightMap
 	{
 	public:
-		HeightMap(Service& service, int _gridWidth = 100, int _gridHeight = 100, int _width = 150, int _height = 150, int minY = 20);
+		HeightMap(Service& service, int _gridWidth = 150, int _gridHeight = 150, int _width = 150, int _height = 150, int minY = 20);
 		HeightMap(const HeightMap&);
 		~HeightMap();
 		VertexPosNormal& GetHeightMapValue(int x, int y);
@@ -22,6 +22,8 @@ namespace gk2{
 		int gridWidth, gridHeight;
 		int width, height;
 		float minY;
+		float scale = 0.01;
+		bool shadingEnabled = false;
 	private:
 		static const unsigned int VB_STRIDE;
 		static const unsigned int VB_OFFSET;
