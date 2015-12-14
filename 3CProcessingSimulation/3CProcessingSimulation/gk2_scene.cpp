@@ -325,7 +325,7 @@ void Scene::DrawCoordinateSystem()
 
 int Scene::Signum(float x)
 {
-	return (x > 0) ? 1 : (x < 0) ? -1 : 0;
+	return (x > 0.002) ? 1 : (x < -0.002) ? -1 : 0;
 }
 
 void Scene::DrawMiller()
@@ -359,7 +359,7 @@ void Scene::UpdateMiller(int *dx, int * dy, float step)
 	auto nextPos = paths[actualPath].Pos;
 	if (m_miller->millerType == 'k')
 		nextPos.y += (m_miller->millerSize / 200.0f);
-	if (abs(pos.x - nextPos.x) + abs(pos.y - nextPos.y) + abs(pos.z - nextPos.z) < 0.0065)
+	if (abs(pos.x - nextPos.x) + abs(pos.y - nextPos.y) + abs(pos.z - nextPos.z) < 0.012)
 	{
 		m_miller->Translate(XMFLOAT4(nextPos.x - pos.x, nextPos.y - pos.y, nextPos.z - pos.z, 1));
 		if (dx != NULL)
@@ -377,13 +377,13 @@ void Scene::UpdateMiller(int *dx, int * dy, float step)
 			nextPos.y += (m_miller->millerSize / 200.0f);
 		return;
 	}
-	float shift = 0.002;
+	float shift = 0.004;
 	m_miller->Translate(XMFLOAT4(shift * Signum(nextPos.x - pos.x), shift * Signum(nextPos.y - pos.y), shift * Signum(nextPos.z - pos.z), 1));
 	if (dx != NULL)
 		*dx = Signum(nextPos.x - pos.x);
 	if (dy != NULL)
 		*dy = Signum(nextPos.y - pos.y);
-}
+}	
 
 void Scene::UpdateMap(float dt)
 {
@@ -543,13 +543,17 @@ void Scene::SetMap()
 	ifstream input;
 	input.open("resources/paths/heightMap.txt");
 	float value;
-	for (size_t i = 0; i < 150 * 150; i++)
+	for (size_t i = 0; i < m_HeightMap->gridWidth; i++)
 	{
-		if (input.eof()) break;
-		input >> value;
-		m_HeightMap->cubeVertices[i].Pos.y = value;
+		for (size_t j = 0; j < m_HeightMap->gridHeight; j++)
+		{
+			if (input.eof()) break;
+			input >> value;
+			m_HeightMap->cubeVertices[j * m_HeightMap->gridWidth + i].Pos.y = value;
+		}
 	}
 	input.close();
+	CalculateNormals();
 	m_HeightMap->Update();
 }
 
