@@ -12,7 +12,7 @@ namespace gk2{
 	class HeightMap
 	{
 	public:
-		HeightMap(Service& service, int _gridWidth = 150, int _gridHeight = 150, int _width = 150, int _height = 150, int minY = 20);
+		HeightMap(Service& service, int _gridWidth = 150, int _gridHeight = 150, int _width = 150, int _height = 150, int minY = 19);
 		HeightMap(const HeightMap&);
 		~HeightMap();
 		VertexPosNormal& GetHeightMapValue(int x, int y);

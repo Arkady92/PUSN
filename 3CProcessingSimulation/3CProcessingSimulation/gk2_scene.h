@@ -128,7 +128,7 @@ namespace gk2
 
 		int gridWidth = 100, gridHeight = 100;
 		int width = 150, height = 150;
-		float minY = 20;
+		float minY = 19;
 		float lastFlatY = 0;
 		const float EPSILON = 0.001;
 		bool mapModificated = false;

@@ -325,7 +325,7 @@ void Scene::DrawCoordinateSystem()
 
 int Scene::Signum(float x)
 {
-	return (x > 0.002) ? 1 : (x < -0.002) ? -1 : 0;
+	return (x > 0.008) ? 1 : (x < -0.008) ? -1 : 0;
 }
 
 void Scene::DrawMiller()
@@ -359,7 +359,7 @@ void Scene::UpdateMiller(int *dx, int * dy, float step)
 	auto nextPos = paths[actualPath].Pos;
 	if (m_miller->millerType == 'k')
 		nextPos.y += (m_miller->millerSize / 200.0f);
-	if (abs(pos.x - nextPos.x) + abs(pos.y - nextPos.y) + abs(pos.z - nextPos.z) < 0.012)
+	if (abs(pos.x - nextPos.x) + abs(pos.y - nextPos.y) + abs(pos.z - nextPos.z) < 0.024)
 	{
 		m_miller->Translate(XMFLOAT4(nextPos.x - pos.x, nextPos.y - pos.y, nextPos.z - pos.z, 1));
 		if (dx != NULL)
@@ -377,7 +377,7 @@ void Scene::UpdateMiller(int *dx, int * dy, float step)
 			nextPos.y += (m_miller->millerSize / 200.0f);
 		return;
 	}
-	float shift = 0.004;
+	float shift = 0.008;
 	m_miller->Translate(XMFLOAT4(shift * Signum(nextPos.x - pos.x), shift * Signum(nextPos.y - pos.y), shift * Signum(nextPos.z - pos.z), 1));
 	if (dx != NULL)
 		*dx = Signum(nextPos.x - pos.x);
@@ -646,7 +646,7 @@ void TW_CALL ApplyChangesCallback(void * a)
 	Service* service = static_cast<Service*>(a);
 	Scene *scene = static_cast<Scene*>(service->Scene);
 	scene->RecreateScene();
-	scene->SetMap();
+	//scene->SetMap();
 }
 
 void TW_CALL ClearMaterialCallback(void * a)
