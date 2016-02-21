@@ -1,0 +1,98 @@
+﻿<Window x:Class="RobotKinematics.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:robotKinematics="clr-namespace:RobotKinematics"
+                Title="Kinematics Chain Demo" Height="700" Width="1050" WindowStartupLocation="CenterScreen">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="370"></ColumnDefinition>
+            <ColumnDefinition Width="*"></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"></RowDefinition>
+                <RowDefinition Height="370"></RowDefinition>
+            </Grid.RowDefinitions>
+            <Grid>
+                <Border Grid.Column="1" BorderBrush="Black" BorderThickness="2">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition></ColumnDefinition>
+                            <ColumnDefinition></ColumnDefinition>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" HorizontalAlignment="Center" Orientation="Vertical">
+                            <Label Content="MODE" Margin="5, 0, 5, 0" HorizontalAlignment="Center"></Label>
+                            <Button Name="SwitchToPathfindingButton" IsEnabled="False" Margin="5, 0, 5, 5" Width="140" Height="30" Content="Switch to Pathfinding" Click="SwitchToPathfindingButton_Click"></Button>
+                            <Button Name="SwitchToConfigurationButton" IsEnabled="False" Margin="5" Width="140" Height="30" Content="Switch to Configuration" Click="SwitchToConfigurationButton_Click"></Button>
+                            <Label Content="PARAMETERS" HorizontalAlignment="Center" Margin="5, 5, 5, 0"></Label>
+                            <Label Content="Animation Time"></Label>
+                            <TextBox Name="AnimationSpeedTextBox" Text="{Binding Path=AnimationTime, Mode=TwoWay}" Margin="20,0,20,0" Width="50" HorizontalAlignment="Left"></TextBox>
+                            <Label Content="First Arm Length"></Label>
+                            <TextBox Name="L1TextBox" Text="{Binding Path=L1, Mode=TwoWay}" Margin="20,0,20,0" Width="50" HorizontalAlignment="Left"></TextBox>
+                            <Label Content="Second Arm Length"></Label>
+                            <TextBox Name="L2TextBox" Text="{Binding Path=L2, Mode=TwoWay}" Margin="20,0,20,0" Width="50" HorizontalAlignment="Left"></TextBox>
+
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <Label Content="PATHFINDING" HorizontalAlignment="Center" Margin="5, 5, 5, 0"></Label>
+                            <Button Name="PlayButton" IsEnabled="False" Margin="5" Width="100" Height="30" Content="Play Animation" Click="OnPlayButtonClicked"></Button>
+                            <Label Content="CONFIGURATION" HorizontalAlignment="Center" Margin="5, 5, 5, 0"></Label>
+                            <Button Name="ColliderButton" Margin="5" Width="120" Height="30" Content="Generate Colliders" Click="CollidersButton_Click"></Button>
+                            <Button Name="GenerateButton" Margin="5" Width="140" Height="30" Content="Generate Configuration" Click="GenerateButton_Click"></Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+            <Border Grid.Row="1" BorderBrush="Black" BorderThickness="2">
+                <Image Name="Image" Width="360" Height="360" Margin="5">
+                </Image>
+            </Border>
+        </Grid>
+        <Border Grid.Column="1" BorderBrush="Black" BorderThickness="2">
+            <robotKinematics:DragCanvas x:Name="dragCanvas"  DraggingMode="AllowDragInView" Width="665" Height="665" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Grid.Column="0" Background="White" MouseLeftButtonUp="Canvas_OnMouseLeftButtonUp">
+                <Ellipse Fill="Black" Stroke="Black" StrokeThickness="2" Width="5" Height="5" Margin="330, 330, 0 ,0"></Ellipse>
+            </robotKinematics:DragCanvas>
+            <!--<Canvas Name="SimulationCanvas" Width="665" Height="665" Background="White">
+            </Canvas>-->
+        </Border>
+    </Grid>
+</Window>
+        
+        
+        <!--Title="Robot Kinematics" Height="600" Width="1100" WindowStartupLocation="CenterScreen">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" ></ColumnDefinition>
+            <ColumnDefinition Width="400"></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+        <robotKinematics:DragCanvas x:Name="dragCanvas"  DraggingMode="AllowDragInView" Width="700" Height="570" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Grid.Column="0" Background="White" MouseLeftButtonUp="Canvas_OnMouseLeftButtonUp">
+            <Line  X1="350" Y1="0" X2="350" Y2="570" StrokeThickness="1" Stroke="Black" robotKinematics:DragCanvas.CanBeDragged="True" />
+            <Line X1="0" Y1="285" X2="700" Y2="285" StrokeThickness="1" Stroke="Black" robotKinematics:DragCanvas.CanBeDragged="True" />
+        </robotKinematics:DragCanvas>
+        <StackPanel Grid.Column="1" Orientation="Vertical">
+            <Border Width="360" Height="360" BorderBrush="Black" BorderThickness="2">
+                <Image Width="360" Height="360"  Name="Image" />
+            </Border>
+            <Border Margin="10" BorderBrush="Black" BorderThickness="1">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="10">
+                    <Button Name="PlayButton" Margin="5" Content="Start" Width="90" Height="30" Click="OnPlayButtonClicked"></Button>
+                    <Button Name="PauseButton" Margin="5" Content="Pause" Width="90" Height="30" Click="OnPauseButtonClicked"></Button>
+                    <Button Name="ResetButton" Margin="5" Content="Reset" Width="90" Height="30" Click="OnRestartButtonClicked"></Button>
+                </StackPanel>
+            </Border>
+            <StackPanel Orientation="Horizontal">
+                <Label Content="Animation Time in (ms)"></Label>
+                <TextBox VerticalAlignment="Center" Name="AnimationTimeBox" Text="{Binding Path=AnimationTime, UpdateSourceTrigger=PropertyChanged}" Width="50" Margin="20,0,20,10" HorizontalAlignment="Left"></TextBox>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal">
+                <Label Content="Mode editor"></Label>
+                <StackPanel Orientation="Vertical">
+                    <RadioButton GroupName="Mode" Content="Editor mode" IsChecked="{Binding Path=EditorMode}" Checked="EditorModeValueChanged" Unchecked="EditorModeValueChanged" />
+                    <RadioButton GroupName="Mode" Content="Animation mode" />
+                </StackPanel>
+
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Window>-->
